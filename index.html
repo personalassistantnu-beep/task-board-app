@@ -1,0 +1,712 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#EDF0F3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141922" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Tasks">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<title>Tasks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EDF0F3; --surface:#FFFFFF; --ink:#1E2633; --muted:#5B6575; --line:#D6DCE3;
+  --p1:#B0285A; --p2:#2F6DB0; --p3:#4A7660; --p4:#737B88;
+  --warn-bg:#FBEFD6; --warn-ink:#7A5200; --od-bg:#F9DEE7; --od-ink:#8A1C44;
+  --err:#B3261E; --err-bg:#FBE3E1; --err-ink:#7A1A14;
+  --font:"Atkinson Hyperlegible",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+  color-scheme:light dark;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --paper:#141922; --surface:#1C2330; --ink:#E4E8EE; --muted:#A3ACB9; --line:#2E3847;
+    --p1:#E86F97; --p2:#72A9E6; --p3:#8DBBA1; --p4:#A3AAB5;
+    --warn-bg:#3A2E12; --warn-ink:#F0C870; --od-bg:#43202D; --od-ink:#F6A9C2;
+    --err:#FF8A80; --err-bg:#45201D; --err-ink:#FFB4AB;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.4 var(--font);
+  padding:0 env(safe-area-inset-right) calc(100px + env(safe-area-inset-bottom)) env(safe-area-inset-left)}
+button{font:inherit;color:inherit;-webkit-tap-highlight-color:transparent}
+:focus-visible{outline:3px solid var(--p2);outline-offset:2px}
+[hidden]{display:none!important}
+
+.top{position:sticky;top:0;z-index:5;background:var(--paper);border-bottom:1px solid var(--line);
+  padding:calc(10px + env(safe-area-inset-top)) 16px 10px}
+.top-row{display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:720px;margin:0 auto}
+h1{font-size:30px;line-height:1.1;margin:0;font-weight:700;letter-spacing:-.01em}
+.top-actions{display:flex;align-items:center;gap:2px}
+.icon-btn{width:44px;height:44px;border:0;background:transparent;border-radius:12px;display:grid;place-items:center;cursor:pointer}
+.icon-btn:active{background:var(--line)}
+.sync{font-size:13px;color:var(--muted);display:inline-flex;align-items:center;gap:6px;margin-right:6px;white-space:nowrap}
+.sync::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--p3)}
+.sync[data-s="saving"]::before,.sync[data-s="pending"]::before,.sync[data-s="loading"]::before{background:var(--warn-ink)}
+.sync[data-s="offline"]::before{background:var(--p4)}
+.sync[data-s="error"]::before{background:var(--err)}
+.sync[data-s="idle"]{visibility:hidden}
+.controls{display:flex;gap:8px;margin:10px auto 0;overflow-x:auto;scrollbar-width:none;max-width:720px}
+.controls::-webkit-scrollbar{display:none}
+.seg{display:inline-flex;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:3px;gap:2px;flex-shrink:0}
+.seg button{border:0;background:transparent;padding:7px 12px;border-radius:9px;font-size:15px;cursor:pointer;white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.seg.full{display:flex;width:100%}
+.seg.full button{flex:1;padding:9px 6px}
+.chip-toggle{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:7px 12px;font-size:15px;white-space:nowrap;flex-shrink:0;cursor:pointer}
+.chip-toggle[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.count{display:inline-block;min-width:20px;padding:1px 6px;border-radius:10px;background:var(--warn-bg);color:var(--warn-ink);font-size:13px;margin-left:4px;text-align:center}
+.count:empty{display:none}
+
+main{padding:0 12px;max-width:720px;margin:0 auto}
+.group{margin-top:24px}
+.group h2{display:flex;align-items:baseline;gap:10px;margin:0 6px 10px;font-size:22px;font-weight:700}
+.group.p1 .g-title{color:var(--p1)} .group.p2 .g-title{color:var(--p2)}
+.group.p3 .g-title{color:var(--p3)} .group.p4 .g-title{color:var(--p4)}
+.g-pri{font-size:13px;color:var(--muted)}
+.g-count{font-size:14px;color:var(--muted);font-weight:400;margin-left:auto}
+.tasks{list-style:none;margin:0;padding:0;background:var(--surface);border:1px solid var(--line);border-radius:18px;overflow:hidden}
+.task+.task{border-top:1px solid var(--line)}
+.row{display:flex;align-items:flex-start}
+.ring{flex:0 0 54px;height:54px;border:0;background:transparent;display:grid;place-items:center;cursor:pointer;color:var(--p2)}
+.p1>.row>.ring{color:var(--p1)} .p2>.row>.ring{color:var(--p2)}
+.p3>.row>.ring{color:var(--p3)} .p4>.row>.ring{color:var(--p4)}
+.ring:active svg{transform:scale(.88)}
+.ring svg{transition:transform .12s}
+.body{flex:1;min-width:0;text-align:left;border:0;background:transparent;padding:15px 6px 15px 0;cursor:pointer;display:block}
+.title{display:block;font-size:17px;line-height:1.35;overflow-wrap:anywhere}
+.s-done>.row .title{color:var(--muted)}
+.meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
+.chip{font-size:13px;line-height:1;padding:5px 8px;border-radius:7px;background:var(--paper);color:var(--muted);display:inline-flex;align-items:center;gap:4px}
+.chip.overdue{background:var(--od-bg);color:var(--od-ink)}
+.chip.check{background:var(--warn-bg);color:var(--warn-ink)}
+.chip.pri.p1{color:var(--p1)} .chip.pri.p2{color:var(--p2)} .chip.pri.p3{color:var(--p3)} .chip.pri.p4{color:var(--p4)}
+.note{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:14px;line-height:1.4;color:var(--muted);margin-top:6px}
+.expander{flex:0 0 auto;min-width:58px;height:54px;border:0;background:transparent;color:var(--muted);font-size:14px;display:flex;align-items:center;justify-content:center;gap:2px;cursor:pointer;padding:0 10px}
+.expander svg{transition:transform .2s}
+.expander[aria-expanded="true"] svg{transform:rotate(180deg)}
+.subs{border:0;border-radius:0;background:transparent;border-top:1px solid var(--line);margin-left:54px}
+.sub>.row>.ring{flex-basis:44px;height:48px}
+.sub .title{font-size:16px}
+.sub>.row>.body{padding:13px 6px 13px 0}
+
+.fab{position:fixed;right:calc(16px + env(safe-area-inset-right));bottom:calc(18px + env(safe-area-inset-bottom));height:54px;padding:0 22px;border-radius:27px;border:0;background:var(--ink);color:var(--paper);font-size:17px;font-weight:700;box-shadow:0 6px 20px rgba(20,25,34,.28);cursor:pointer;z-index:6}
+.banner{max-width:696px;margin:12px auto 0;padding:12px 14px;border-radius:12px;background:var(--warn-bg);color:var(--warn-ink);font-size:15px;display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center}
+.banner.error{background:var(--err-bg);color:var(--err-ink)}
+.banner .grow{flex:1 1 220px}
+.banner button{border:0;background:transparent;text-decoration:underline;font-size:15px;padding:6px 2px;cursor:pointer;color:inherit}
+.toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 14px;border-radius:12px;font-size:15px;max-width:90vw;z-index:30;text-align:center}
+.empty{padding:48px 20px;text-align:center;color:var(--muted)}
+.empty .btn{margin-top:12px}
+
+dialog{border:0;padding:0;background:var(--surface);color:var(--ink);width:100%;max-width:640px;max-height:92vh;max-height:92dvh;margin:auto auto 0;border-radius:22px 22px 0 0;overflow:hidden}
+dialog::backdrop{background:rgba(10,14,20,.45)}
+dialog[open]{animation:up .22s ease-out}
+@keyframes up{from{transform:translateY(30px);opacity:.6}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion: reduce){dialog[open]{animation:none} .ring svg,.expander svg{transition:none}}
+@media (min-width:700px){dialog{margin:auto;border-radius:22px}}
+.sheet{padding:6px 18px calc(22px + env(safe-area-inset-bottom));overflow-y:auto;max-height:92vh;max-height:92dvh}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--surface);padding:10px 0 6px;z-index:1}
+.sheet-head h2{font-size:20px;margin:0}
+.field{display:block;margin:14px 0;border:0;padding:0;min-width:0}
+.label,.field legend{display:block;font-size:14px;color:var(--muted);margin-bottom:6px;padding:0}
+input[type=text],input[type=password],input[type=date],textarea,select{width:100%;font:inherit;font-size:17px;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:11px 12px;-webkit-appearance:none;appearance:none;min-height:46px}
+select{background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 18px) 50%,calc(100% - 12px) 50%;background-size:6px 6px;background-repeat:no-repeat;padding-right:34px}
+textarea{resize:vertical;line-height:1.4}
+.inline{display:flex;gap:8px;align-items:center}
+.inline input{flex:1}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:11px 16px;font-size:16px;cursor:pointer;white-space:nowrap}
+.btn.primary{background:var(--ink);color:var(--paper);border-color:var(--ink);font-weight:700}
+.btn.danger{background:var(--err);color:#fff;border-color:var(--err);font-weight:700}
+.btn.quiet{border-color:transparent;background:transparent;color:var(--err);padding-left:0}
+.btn:disabled{opacity:.55}
+.link{border:0;background:transparent;color:var(--p2);padding:10px 4px;cursor:pointer;font-size:16px}
+.checks{margin:10px 0}
+.checks label{display:flex;gap:12px;align-items:flex-start;padding:8px 0;font-size:16px;line-height:1.35}
+.checks input{width:22px;height:22px;margin:0;flex:0 0 22px;accent-color:var(--ink)}
+.checks small{display:block;color:var(--muted);font-size:14px}
+.sub-edit{list-style:none;padding:0;margin:0 0 8px;border-top:1px solid var(--line)}
+.sub-edit li{display:flex;align-items:center;border-bottom:1px solid var(--line)}
+.sub-edit .ring{flex-basis:44px;height:46px}
+.sub-edit input{flex:1;border:0;background:transparent;min-height:46px;padding:8px 4px}
+.sub-edit .icon-btn{color:var(--muted)}
+.sheet-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:20px}
+.confirm{margin-top:16px;padding:14px;border-radius:14px;background:var(--err-bg);color:var(--err-ink)}
+.confirm p{margin:0 0 8px;font-size:15px}
+.confirm input{background:var(--surface)}
+.confirm .inline{margin-top:10px;justify-content:flex-end}
+.err{color:var(--err);font-size:14px;margin:6px 0 0}
+.hint{color:var(--muted);font-size:15px;margin:6px 0}
+.sheet h3{font-size:17px;margin:24px 0 6px}
+.arch-list{list-style:none;padding:0;margin:0}
+.arch-list li{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-size:15px}
+.arch-list small{display:block;color:var(--muted)}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="top-row">
+    <h1>Tasks</h1>
+    <div class="top-actions">
+      <span id="sync" class="sync" data-s="idle" role="status" aria-live="polite"></span>
+      <button id="btn-refresh" class="icon-btn" data-act="refresh" aria-label="Reload tasks from GitHub">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
+      </button>
+      <button class="icon-btn" data-act="settings" aria-label="Settings">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="controls">
+    <div class="seg" role="group" aria-label="Group tasks by">
+      <button data-act="group" data-v="priority" aria-pressed="true">Priority</button>
+      <button data-act="group" data-v="area" aria-pressed="false">Area</button>
+    </div>
+    <button class="chip-toggle" data-act="only-check" aria-pressed="false">Needs check<span class="count" id="n-check"></span></button>
+    <button class="chip-toggle" data-act="show-done" aria-pressed="false">Show done</button>
+  </div>
+</header>
+<div id="banner" class="banner" hidden></div>
+<main id="list" aria-live="polite"></main>
+<button class="fab" data-act="add">+ Add task</button>
+<div id="toast" class="toast" role="status" hidden></div>
+
+<dialog id="sheet" aria-labelledby="sheet-title">
+  <form class="sheet" id="sheet-form" novalidate>
+    <div class="sheet-head">
+      <h2 id="sheet-title">Edit task</h2>
+      <button type="button" class="icon-btn" data-act="close" aria-label="Close without saving">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="field">
+      <label class="label" for="f-title">Task</label>
+      <textarea id="f-title" rows="2" autocapitalize="sentences"></textarea>
+      <p id="f-title-err" class="err" hidden>Enter a name for the task.</p>
+    </div>
+    <fieldset class="field">
+      <legend>Status</legend>
+      <div class="seg full" id="f-status">
+        <button type="button" data-v="todo">To do</button>
+        <button type="button" data-v="partial">Partial</button>
+        <button type="button" data-v="done">Done</button>
+      </div>
+    </fieldset>
+    <fieldset class="field">
+      <legend>Priority</legend>
+      <div class="seg full" id="f-priority">
+        <button type="button" data-v="1">Now</button>
+        <button type="button" data-v="2">Soon</button>
+        <button type="button" data-v="3">Later</button>
+        <button type="button" data-v="4">Someday</button>
+      </div>
+    </fieldset>
+    <div class="field" id="f-area-wrap">
+      <label class="label" for="f-area">Area</label>
+      <select id="f-area"></select>
+      <input type="text" id="f-area-new" placeholder="Name the new area" hidden style="margin-top:8px">
+    </div>
+    <div class="field">
+      <label class="label" for="f-due">Due date</label>
+      <div class="inline">
+        <input type="date" id="f-due">
+        <button type="button" class="link" data-act="clear-due">Clear</button>
+      </div>
+    </div>
+    <div class="field">
+      <label class="label" for="f-note">Notes</label>
+      <textarea id="f-note" rows="3" autocapitalize="sentences"></textarea>
+    </div>
+    <div class="checks">
+      <label id="f-pinned-wrap"><input type="checkbox" id="f-pinned"><span>Pinned<small>Can be archived but never dropped by accident</small></span></label>
+      <label><input type="checkbox" id="f-review"><span>Needs check<small>Flag it for a status review</small></span></label>
+    </div>
+    <div class="field">
+      <span class="label" id="subs-label">Subtasks</span>
+      <ul id="f-subs" class="sub-edit" aria-labelledby="subs-label"></ul>
+      <div class="inline">
+        <input type="text" id="f-sub-new" placeholder="Add a subtask" enterkeyhint="done" aria-label="New subtask">
+        <button type="button" class="btn" data-act="add-sub">Add</button>
+      </div>
+    </div>
+    <div class="sheet-actions">
+      <button type="button" class="btn quiet" data-act="archive-start" id="btn-archive">Archive</button>
+      <button type="submit" class="btn primary">Save changes</button>
+    </div>
+    <div class="confirm" id="archive-confirm" hidden>
+      <p id="archive-msg">Archived tasks leave the list but stay in the archive, where you can restore them.</p>
+      <label class="label" for="f-reason">Reason (optional)</label>
+      <input type="text" id="f-reason" placeholder="For example: no longer needed">
+      <div class="inline">
+        <button type="button" class="btn" data-act="archive-cancel">Keep it</button>
+        <button type="button" class="btn danger" data-act="archive-confirm">Archive task</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="settings" aria-labelledby="settings-title">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h2 id="settings-title">Settings</h2>
+      <button type="button" class="icon-btn" data-act="close" aria-label="Close settings">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <p class="hint">Paste a GitHub fine-grained token with access to your task repo (Contents: Read and write). It's stored only on this phone.</p>
+    <div class="field">
+      <label class="label" for="s-token">GitHub token</label>
+      <input type="password" id="s-token" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="github_pat_…">
+    </div>
+    <div class="field">
+      <label class="label" for="s-repo">Task repository</label>
+      <input type="text" id="s-repo" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+    </div>
+    <p id="s-err" class="err" hidden></p>
+    <button type="button" class="btn primary" data-act="s-save" id="s-save">Save and load tasks</button>
+    <p class="hint" id="s-last"></p>
+    <h3>Archived tasks</h3>
+    <ul class="arch-list" id="s-archive"></ul>
+    <h3>This phone</h3>
+    <button type="button" class="btn quiet" data-act="s-forget">Remove token from this phone</button>
+  </div>
+</dialog>
+
+<script>
+'use strict';
+(function(){
+const $ = s => document.querySelector(s);
+const CFG_KEY = 'tb.cfg.v1', CACHE_KEY = 'tb.cache.v1', VIEW_KEY = 'tb.view.v1';
+const PRI = {1:'Now', 2:'Soon', 3:'Later', 4:'Someday'};
+const STATUS = {todo:'To do', partial:'Partial', done:'Done'};
+const NEXT = {todo:'partial', partial:'done', done:'todo'};
+const PIN = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 17v5M9 3h6l-1 6 4 4H6l4-4z"/></svg>';
+const CHEVRON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
+const TRASH = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+
+function save(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+function load(k){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch (e) { return null; } }
+function clone(o){ return JSON.parse(JSON.stringify(o)); }
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function today(){ const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+function newId(){ return 't-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+let cfg = Object.assign({repo:'personalassistantnu-beep/task-board', path:'tasks.json', branch:'main', token:''}, load(CFG_KEY) || {});
+let view = Object.assign({group:'priority', showDone:false, onlyCheck:false, open:{}}, load(VIEW_KEY) || {});
+let server = load(CACHE_KEY) || {doc:null, sha:null, at:null};
+let pending = [];
+let saving = false, saveTimer = null, sync = {s:'idle', msg:''}, draft = null, lastArea = null;
+
+/* ---------- GitHub API ---------- */
+function b64dec(s){ const bin = atob(s.replace(/\s/g, '')); const bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i); return new TextDecoder().decode(bytes); }
+function b64enc(str){ const bytes = new TextEncoder().encode(str); let bin = ''; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(bin); }
+function explain(status, msg){
+  if (status === 401) return 'GitHub rejected the token. Paste a valid one in Settings.';
+  if (status === 403) return 'The token can\u2019t access this repo. It needs Contents: Read and write.';
+  if (status === 404) return 'Couldn\u2019t find ' + cfg.path + ' in ' + cfg.repo + '. Check the repository name in Settings.';
+  if (status === 409) return 'The file changed on GitHub while saving.';
+  return 'GitHub error ' + status + (msg ? ': ' + msg : '') + '.';
+}
+async function gh(method, path, body){
+  const ctrl = new AbortController(); const timer = setTimeout(() => ctrl.abort(), 20000);
+  let res;
+  try {
+    res = await fetch('https://api.github.com' + path, {
+      method, cache:'no-store', signal:ctrl.signal,
+      headers: Object.assign({'Authorization':'Bearer ' + cfg.token, 'Accept':'application/vnd.github+json'}, body ? {'Content-Type':'application/json'} : {}),
+      body: body ? JSON.stringify(body) : undefined
+    });
+  } catch (e) {
+    const err = new Error(e && e.name === 'AbortError' ? 'GitHub took too long to respond.' : 'Can\u2019t reach GitHub. Check your connection.');
+    err.status = 0; throw err;
+  } finally { clearTimeout(timer); }
+  const text = await res.text(); let data = null; try { data = text ? JSON.parse(text) : null; } catch (e) {}
+  if (!res.ok) { const err = new Error(explain(res.status, data && data.message)); err.status = res.status; throw err; }
+  return data;
+}
+function contentsUrl(){ return '/repos/' + cfg.repo + '/contents/' + cfg.path; }
+async function fetchDoc(){
+  const j = await gh('GET', contentsUrl() + '?ref=' + encodeURIComponent(cfg.branch) + '&t=' + Date.now());
+  const doc = JSON.parse(b64dec(j.content));
+  if (!Array.isArray(doc.tasks)) throw Object.assign(new Error('tasks.json has no task list.'), {status:-1});
+  doc.archive = doc.archive || []; doc.areas = doc.areas || [];
+  return {doc, sha:j.sha};
+}
+async function putDoc(doc, sha, message){
+  const j = await gh('PUT', contentsUrl(), {message, content:b64enc(JSON.stringify(doc, null, 2) + '\n'), sha, branch:cfg.branch});
+  return j.content.sha;
+}
+
+/* ---------- state & saving ---------- */
+function current(){ const d = clone(server.doc); for (const p of pending) { try { p.fn(d); } catch (e) { console.error(e); } } return d; }
+function setSync(s, msg){ sync = {s, msg:msg || ''}; renderSync(); renderBanner(); }
+function mutate(label, fn){
+  if (!server.doc) return false;
+  if (!navigator.onLine) { toast('You\u2019re offline, so changes can\u2019t be saved. Reconnect and try again.'); return false; }
+  pending.push({label, fn}); setSync('pending'); render();
+  clearTimeout(saveTimer); saveTimer = setTimeout(flush, 1200);
+  return true;
+}
+async function flush(){
+  clearTimeout(saveTimer);
+  if (saving || !pending.length || !server.doc) return;
+  saving = true; setSync('saving');
+  const batch = pending.slice();
+  const message = (batch.length === 1 ? 'App: ' + batch[0].label : 'App: ' + batch.length + ' changes (' + batch.map(b => b.label).join('; ') + ')').slice(0, 240);
+  try {
+    let base = {doc:server.doc, sha:server.sha};
+    for (let attempt = 0; ; attempt++) {
+      const d = clone(base.doc); batch.forEach(b => b.fn(d)); d.updated = new Date().toISOString();
+      try { const sha = await putDoc(d, base.sha, message); server = {doc:d, sha, at:new Date().toISOString()}; break; }
+      catch (e) {
+        if ((e.status === 409 || e.status === 422) && attempt < 2) { const r = await fetchDoc(); base = r; server = {doc:r.doc, sha:r.sha, at:new Date().toISOString()}; continue; }
+        throw e;
+      }
+    }
+    pending.splice(0, batch.length);
+    save(CACHE_KEY, server);
+    setSync(pending.length ? 'pending' : 'ok');
+  } catch (e) {
+    setSync(e.status === 0 ? 'offline' : 'error', e.message);
+  } finally {
+    saving = false; render();
+    if (pending.length && sync.s === 'pending') saveTimer = setTimeout(flush, 600);
+  }
+}
+async function refresh(quiet){
+  if (!cfg.token) { render(); openSettings(); return; }
+  if (pending.length) { await flush(); if (pending.length) return; }
+  if (!quiet) setSync('loading');
+  try {
+    const r = await fetchDoc();
+    server = {doc:r.doc, sha:r.sha, at:new Date().toISOString()}; save(CACHE_KEY, server);
+    setSync('ok');
+  } catch (e) { setSync(e.status === 0 ? 'offline' : 'error', e.message); }
+  render();
+}
+
+/* ---------- tree helpers ---------- */
+function find(list, id, parent){
+  for (let i = 0; i < list.length; i++) {
+    const t = list[i];
+    if (t.id === id) return {task:t, list, index:i, parent:parent || null};
+    if (t.subtasks && t.subtasks.length) { const r = find(t.subtasks, id, t); if (r) return r; }
+  }
+  return null;
+}
+function hasReview(t){ return !!t.review || (t.subtasks || []).some(hasReview); }
+function countReview(list){ return list.reduce((n, t) => n + (t.review ? 1 : 0) + countReview(t.subtasks || []), 0); }
+function areasOf(d){ const set = d.areas.slice(); d.tasks.forEach(t => { if (t.area && !set.includes(t.area)) set.push(t.area); }); if (d.tasks.some(t => !t.area)) set.push(''); return set; }
+
+/* ---------- rendering ---------- */
+function ring(s){
+  const c = '<circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>';
+  const open = '<svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">';
+  if (s === 'todo') return open + c + '</svg>';
+  if (s === 'partial') return open + c + '<path d="M12 4.5a7.5 7.5 0 0 1 0 15z" fill="currentColor"/></svg>';
+  return open + '<circle cx="12" cy="12" r="11" fill="currentColor"/><path d="M7.4 12.4l3.1 3.1 6.1-6.6" fill="none" stroke="var(--surface)" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+}
+function fmtDate(iso){
+  const [y, m, d] = iso.split('-').map(Number); const dt = new Date(y, m - 1, d);
+  const opts = {day:'numeric', month:'short'}; if (y !== new Date().getFullYear()) opts.year = 'numeric';
+  return dt.toLocaleDateString('en-GB', opts);
+}
+function dueChip(t){
+  const overdue = t.status !== 'done' && t.due < today();
+  return '<span class="chip' + (overdue ? ' overdue' : '') + '">' + (overdue ? 'Overdue ' : 'Due ') + esc(fmtDate(t.due)) + '</span>';
+}
+function row(t, depth, parentPri){
+  const subs = t.subtasks || []; const done = subs.filter(s => s.status === 'done').length;
+  const open = !!view.open[t.id];
+  const meta = [];
+  if (depth === 0 && view.group === 'priority' && t.area) meta.push('<span class="chip">' + esc(t.area) + '</span>');
+  if ((depth === 0 && view.group === 'area') || (depth > 0 && t.priority !== parentPri)) meta.push('<span class="chip pri p' + t.priority + '">' + PRI[t.priority] + '</span>');
+  if (t.due) meta.push(dueChip(t));
+  if (t.review) meta.push('<span class="chip check">Needs check</span>');
+  if (t.pinned) meta.push('<span class="chip">' + PIN + 'Pinned</span>');
+  const label = esc(t.title) + ': ' + STATUS[t.status] + '. Tap to mark ' + STATUS[NEXT[t.status]].toLowerCase();
+  return '<li class="task p' + t.priority + ' s-' + t.status + (depth ? ' sub' : '') + '"><div class="row">' +
+    '<button class="ring" data-act="cycle" data-id="' + esc(t.id) + '" aria-label="' + label + '">' + ring(t.status) + '</button>' +
+    '<button class="body" data-act="edit" data-id="' + esc(t.id) + '"><span class="title">' + esc(t.title) + '</span>' +
+      (meta.length ? '<span class="meta">' + meta.join('') + '</span>' : '') +
+      (t.note ? '<span class="note">' + esc(t.note) + '</span>' : '') + '</button>' +
+    (subs.length ? '<button class="expander" data-act="toggle" data-id="' + esc(t.id) + '" aria-expanded="' + open + '" aria-label="' + (open ? 'Hide' : 'Show') + ' ' + subs.length + ' subtasks, ' + done + ' done"><span>' + done + '/' + subs.length + '</span>' + CHEVRON + '</button>' : '') +
+    '</div>' + (subs.length && open ? '<ul class="tasks subs">' + subs.map(s => row(s, depth + 1, t.priority)).join('') + '</ul>' : '') + '</li>';
+}
+function sorter(byPri){
+  return (a, b) => ((a.t.status === 'done') - (b.t.status === 'done')) ||
+    (byPri ? a.t.priority - b.t.priority : 0) ||
+    ((b.t.pinned ? 1 : 0) - (a.t.pinned ? 1 : 0)) ||
+    String(a.t.due || '9999').localeCompare(String(b.t.due || '9999')) || (a.i - b.i);
+}
+function render(){
+  renderControls();
+  const list = $('#list');
+  if (!server.doc) {
+    list.innerHTML = cfg.token
+      ? '<p class="empty">Loading your tasks\u2026</p>'
+      : '<div class="empty"><p>Add your GitHub token to load your tasks.</p><button class="btn primary" data-act="settings">Open settings</button></div>';
+    return;
+  }
+  const d = current();
+  $('#n-check').textContent = String(countReview(d.tasks) || '');
+  let items = d.tasks.map((t, i) => ({t, i}));
+  if (view.onlyCheck) items = items.filter(x => hasReview(x.t));
+  if (!view.showDone) items = items.filter(x => x.t.status !== 'done');
+  const groups = view.group === 'priority'
+    ? [1, 2, 3, 4].map(p => ({cls:'p' + p, title:PRI[p], pri:p, items:items.filter(x => x.t.priority === p).sort(sorter(false))}))
+    : areasOf(d).map(a => ({cls:'', title:a || 'No area', items:items.filter(x => (x.t.area || '') === a).sort(sorter(true))}));
+  const html = groups.filter(g => g.items.length).map(g => {
+    const open = g.items.filter(x => x.t.status !== 'done').length;
+    return '<section class="group ' + g.cls + '"><h2><span class="g-title">' + esc(g.title) + '</span>' + (g.pri ? '<span class="g-pri">P' + g.pri + '</span>' : '') +
+      '<span class="g-count">' + open + ' open</span></h2><ul class="tasks">' + g.items.map(x => row(x.t, 0)).join('') + '</ul></section>';
+  }).join('');
+  list.innerHTML = html || '<div class="empty"><p>' + (view.onlyCheck ? 'Nothing needs checking.' : 'No open tasks. Add one with the button below.') + '</p></div>';
+}
+function renderControls(){
+  document.querySelectorAll('[data-act="group"]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === view.group)));
+  document.querySelector('[data-act="only-check"]').setAttribute('aria-pressed', String(view.onlyCheck));
+  document.querySelector('[data-act="show-done"]').setAttribute('aria-pressed', String(view.showDone));
+}
+function renderSync(){
+  const el = $('#sync');
+  const text = {idle:'', ok:'Synced', loading:'Loading\u2026', pending:'Unsaved', saving:'Saving\u2026', offline:'Offline', error:'Not saved'}[sync.s] || '';
+  el.dataset.s = sync.s; el.textContent = text;
+}
+function renderBanner(){
+  const b = $('#banner');
+  if (sync.s === 'error' || (sync.s === 'offline' && server.doc)) {
+    const when = server.at ? new Date(server.at).toLocaleString('en-GB', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'}) : 'never';
+    const msg = sync.s === 'offline'
+      ? 'Offline. Showing your list as of ' + when + '. Editing is paused until you reconnect.'
+      : (pending.length ? 'Your last change wasn\u2019t saved. ' : '') + sync.msg;
+    b.className = 'banner' + (sync.s === 'error' ? ' error' : '');
+    b.innerHTML = '<span class="grow">' + esc(msg) + '</span>' +
+      (pending.length ? '<button data-act="retry">Try again</button><button data-act="discard">Discard change</button>' : '<button data-act="refresh">Reload</button>');
+    b.hidden = false;
+  } else { b.hidden = true; b.innerHTML = ''; }
+}
+let toastTimer = null;
+function toast(msg){ const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 3200); }
+
+/* ---------- actions ---------- */
+function cycle(id){
+  const f = find(current().tasks, id); if (!f) return;
+  const next = NEXT[f.task.status], title = f.task.title;
+  mutate(title + ' \u2192 ' + STATUS[next].toLowerCase(), d => { const g = find(d.tasks, id); if (g) { g.task.status = next; g.task.updated = today(); } });
+}
+
+/* ---------- editor sheet ---------- */
+const sheet = $('#sheet');
+function segSet(id, v){ document.querySelectorAll('#' + id + ' button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === String(v)))); }
+function openEditor(id){
+  if (!server.doc) return;
+  const d = current();
+  if (id) {
+    const f = find(d.tasks, id); if (!f) return;
+    const t = f.task;
+    draft = {id, isTop:!f.parent, parentTitle:f.parent ? f.parent.title : '', title:t.title, status:t.status, priority:t.priority, area:t.area || '', due:t.due || '', note:t.note || '', pinned:!!t.pinned, review:!!t.review,
+      subs:(t.subtasks || []).map(s => ({id:s.id, title:s.title, status:s.status}))};
+  } else {
+    draft = {id:null, isTop:true, title:'', status:'todo', priority:2, area:lastArea || d.areas[0] || '', due:'', note:'', pinned:false, review:false, subs:[]};
+  }
+  $('#sheet-title').textContent = !id ? 'New task' : (draft.isTop ? 'Edit task' : 'Edit subtask');
+  $('#f-title').value = draft.title; $('#f-title-err').hidden = true;
+  segSet('f-status', draft.status); segSet('f-priority', draft.priority);
+  const sel = $('#f-area'); const areas = areasOf(d).filter(Boolean);
+  if (draft.area && !areas.includes(draft.area)) areas.push(draft.area);
+  sel.innerHTML = areas.map(a => '<option' + (a === draft.area ? ' selected' : '') + '>' + esc(a) + '</option>').join('') + '<option value="__none"' + (!draft.area ? ' selected' : '') + '>No area</option><option value="__new">New area\u2026</option>';
+  $('#f-area-new').hidden = true; $('#f-area-new').value = '';
+  $('#f-area-wrap').hidden = !draft.isTop; $('#f-pinned-wrap').hidden = !draft.isTop;
+  $('#f-due').value = draft.due; $('#f-note').value = draft.note;
+  $('#f-pinned').checked = draft.pinned; $('#f-review').checked = draft.review;
+  $('#f-sub-new').value = '';
+  $('#btn-archive').hidden = !id; $('#archive-confirm').hidden = true; $('#f-reason').value = '';
+  renderSubs();
+  sheet.showModal();
+  if (!id) setTimeout(() => $('#f-title').focus(), 50);
+}
+function renderSubs(){
+  $('#f-subs').innerHTML = draft.subs.map((s, i) =>
+    '<li class="p' + draft.priority + '"><button type="button" class="ring" data-act="sub-cycle" data-i="' + i + '" aria-label="' + esc(s.title || 'Subtask') + ': ' + STATUS[s.status] + '. Tap to change" style="color:var(--p' + draft.priority + ')">' + ring(s.status) + '</button>' +
+    '<input type="text" data-i="' + i + '" value="' + esc(s.title) + '" aria-label="Subtask name">' +
+    '<button type="button" class="icon-btn" data-act="sub-remove" data-i="' + i + '" aria-label="Remove subtask">' + TRASH + '</button></li>').join('');
+}
+function readSheet(){
+  draft.title = $('#f-title').value.trim();
+  draft.note = $('#f-note').value.trim();
+  draft.due = $('#f-due').value || '';
+  draft.pinned = $('#f-pinned').checked; draft.review = $('#f-review').checked;
+  const sel = $('#f-area').value;
+  draft.area = sel === '__new' ? $('#f-area-new').value.trim() : (sel === '__none' ? '' : sel);
+  document.querySelectorAll('#f-subs input').forEach(inp => { draft.subs[+inp.dataset.i].title = inp.value.trim(); });
+  draft.subs = draft.subs.filter(s => s.title);
+}
+function mkSub(s, pri){ return {id:s.id, title:s.title, status:s.status, priority:pri, due:null, subtasks:[], created:today(), updated:today()}; }
+function saveSheet(){
+  readSheet();
+  if (!draft.title) { $('#f-title-err').hidden = false; $('#f-title').focus(); return; }
+  if ($('#f-area').value === '__new' && !draft.area) { $('#f-area-new').focus(); return; }
+  const snap = clone(draft);
+  if (snap.isTop && snap.area) lastArea = snap.area;
+  if (!snap.id) {
+    const nt = {id:newId(), title:snap.title, status:snap.status, priority:snap.priority};
+    if (snap.area) nt.area = snap.area;
+    if (snap.note) nt.note = snap.note;
+    nt.due = snap.due || null;
+    if (snap.pinned) nt.pinned = true;
+    if (snap.review) nt.review = true;
+    nt.subtasks = snap.subs.map(s => mkSub(s, snap.priority)); nt.created = today(); nt.updated = today();
+    mutate('add "' + snap.title + '"', d => { if (snap.area && !d.areas.includes(snap.area)) d.areas.push(snap.area); d.tasks.push(clone(nt)); });
+  } else {
+    mutate('edit "' + snap.title + '"', d => {
+      const f = find(d.tasks, snap.id); if (!f) return;
+      const t = f.task;
+      t.title = snap.title; t.status = snap.status; t.priority = snap.priority; t.due = snap.due || null;
+      if (snap.note) t.note = snap.note; else delete t.note;
+      if (snap.review) t.review = true; else delete t.review;
+      if (snap.isTop) {
+        if (snap.area) { t.area = snap.area; if (!d.areas.includes(snap.area)) d.areas.push(snap.area); } else delete t.area;
+        if (snap.pinned) t.pinned = true; else delete t.pinned;
+      }
+      t.updated = today();
+      const old = t.subtasks || []; const byId = {}; old.forEach(s => { byId[s.id] = s; });
+      const next = snap.subs.map(s => { const o = byId[s.id]; if (o) { if (o.title !== s.title || o.status !== s.status) o.updated = today(); o.title = s.title; o.status = s.status; return o; } return mkSub(s, t.priority); });
+      const keep = new Set(next.map(s => s.id));
+      old.filter(s => !keep.has(s.id)).forEach(s => { d.archive.push(Object.assign(s, {archivedAt:new Date().toISOString(), reason:'Removed from "' + t.title + '"', from:t.id})); });
+      t.subtasks = next;
+    });
+  }
+  sheet.close();
+}
+function archiveFromSheet(){
+  const id = draft.id; if (!id) { sheet.close(); return; }
+  const reason = $('#f-reason').value.trim() || 'Archived in app';
+  const title = draft.title;
+  mutate('archive "' + title + '"', d => {
+    const f = find(d.tasks, id); if (!f) return;
+    f.list.splice(f.index, 1);
+    d.archive.push(Object.assign(f.task, {archivedAt:new Date().toISOString(), reason, from:f.parent ? f.parent.id : null}));
+  });
+  sheet.close();
+  toast('Archived. Restore it from Settings if needed.');
+}
+
+/* ---------- settings ---------- */
+const settings = $('#settings');
+function openSettings(){
+  $('#s-token').value = cfg.token; $('#s-repo').value = cfg.repo; $('#s-err').hidden = true;
+  $('#s-last').textContent = server.at ? 'Last synced ' + new Date(server.at).toLocaleString('en-GB', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'}) + '.' : '';
+  renderArchive();
+  if (!settings.open) settings.showModal();
+}
+function renderArchive(){
+  const arch = server.doc ? current().archive.slice().reverse() : [];
+  $('#s-archive').innerHTML = arch.length ? arch.slice(0, 40).map(a =>
+    '<li><span>' + esc(a.title) + '<small>' + esc((a.archivedAt || '').slice(0, 10)) + (a.reason ? ': ' + esc(a.reason) : '') + '</small></span><button class="btn" data-act="restore" data-id="' + esc(a.id) + '">Restore</button></li>').join('')
+    : '<li><span class="hint">Nothing archived.</span></li>';
+}
+async function saveSettings(){
+  const token = $('#s-token').value.trim(), repo = $('#s-repo').value.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\/$/, '');
+  const err = $('#s-err');
+  if (!token) { err.textContent = 'Paste your GitHub token first.'; err.hidden = false; return; }
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) { err.textContent = 'Enter the repository as owner/name, for example personalassistantnu-beep/task-board.'; err.hidden = false; return; }
+  const prev = {token:cfg.token, repo:cfg.repo};
+  cfg.token = token; cfg.repo = repo;
+  const btn = $('#s-save'); btn.disabled = true; btn.textContent = 'Checking\u2026';
+  try {
+    const r = await fetchDoc();
+    if (prev.repo !== repo) pending = [];
+    server = {doc:r.doc, sha:r.sha, at:new Date().toISOString()};
+    save(CFG_KEY, cfg); save(CACHE_KEY, server);
+    setSync('ok'); settings.close(); render(); toast('Connected. Your tasks are loaded.');
+  } catch (e) {
+    cfg.token = prev.token; cfg.repo = prev.repo;
+    err.textContent = e.message; err.hidden = false;
+  } finally { btn.disabled = false; btn.textContent = 'Save and load tasks'; }
+}
+
+/* ---------- events ---------- */
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]');
+  if (e.target === sheet) { sheet.close(); return; }
+  if (e.target === settings) { settings.close(); return; }
+  if (!el) return;
+  const act = el.dataset.act, id = el.dataset.id;
+  switch (act) {
+    case 'cycle': cycle(id); break;
+    case 'edit': openEditor(id); break;
+    case 'toggle': view.open[id] = !view.open[id]; save(VIEW_KEY, view); render(); break;
+    case 'add': if (server.doc) openEditor(null); else openSettings(); break;
+    case 'group': view.group = el.dataset.v; save(VIEW_KEY, view); render(); break;
+    case 'only-check': view.onlyCheck = !view.onlyCheck; save(VIEW_KEY, view); render(); break;
+    case 'show-done': view.showDone = !view.showDone; save(VIEW_KEY, view); render(); break;
+    case 'refresh': refresh(false); break;
+    case 'settings': openSettings(); break;
+    case 'retry': setSync('pending'); flush(); break;
+    case 'discard': pending = []; setSync('ok'); render(); break;
+    case 'close': el.closest('dialog').close(); break;
+    case 'clear-due': $('#f-due').value = ''; break;
+    case 'add-sub': {
+      readSheet();
+      const v = $('#f-sub-new').value.trim(); if (!v) { $('#f-sub-new').focus(); return; }
+      draft.subs.push({id:newId(), title:v, status:'todo'}); $('#f-sub-new').value = ''; renderSubs(); $('#f-sub-new').focus(); break;
+    }
+    case 'sub-cycle': { readSheet(); const s = draft.subs[+el.dataset.i]; if (s) { s.status = NEXT[s.status]; renderSubs(); } break; }
+    case 'sub-remove': { readSheet(); draft.subs.splice(+el.dataset.i, 1); renderSubs(); break; }
+    case 'archive-start':
+      $('#archive-msg').textContent = draft.pinned
+        ? 'This task is pinned. Archiving removes it from the list; it stays in the archive and can be restored.'
+        : 'Archived tasks leave the list but stay in the archive, where you can restore them.';
+      $('#archive-confirm').hidden = false; $('#f-reason').focus(); break;
+    case 'archive-cancel': $('#archive-confirm').hidden = true; break;
+    case 'archive-confirm': archiveFromSheet(); break;
+    case 's-save': saveSettings(); break;
+    case 's-forget':
+      if (confirm('Remove the token and cached tasks from this phone?')) { cfg.token = ''; save(CFG_KEY, cfg); server = {doc:null, sha:null, at:null}; save(CACHE_KEY, server); pending = []; settings.close(); setSync('idle'); render(); }
+      break;
+    case 'restore': {
+      const t = (current().archive.find(a => a.id === id) || {}).title || 'task';
+      mutate('restore "' + t + '"', d => {
+        const i = d.archive.findIndex(a => a.id === id); if (i < 0) return;
+        const task = d.archive.splice(i, 1)[0]; const from = task.from;
+        delete task.archivedAt; delete task.reason; delete task.from; task.updated = today();
+        const p = from ? find(d.tasks, from) : null;
+        (p ? p.task.subtasks : d.tasks).push(task);
+      });
+      renderArchive(); toast('Restored.'); break;
+    }
+  }
+});
+$('#sheet-form').addEventListener('submit', e => { e.preventDefault(); saveSheet(); });
+$('#f-status').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { draft.status = b.dataset.v; segSet('f-status', draft.status); } });
+$('#f-priority').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { readSheet(); draft.priority = +b.dataset.v; segSet('f-priority', draft.priority); renderSubs(); } });
+$('#f-area').addEventListener('change', e => { const n = $('#f-area-new'); n.hidden = e.target.value !== '__new'; if (!n.hidden) n.focus(); });
+$('#f-title').addEventListener('input', () => { $('#f-title-err').hidden = true; });
+$('#f-reason').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); archiveFromSheet(); } });
+$('#f-sub-new').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); document.querySelector('[data-act="add-sub"]').click(); } });
+window.addEventListener('online', () => { if (pending.length) flush(); else refresh(true); });
+window.addEventListener('offline', () => setSync('offline'));
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') { if (pending.length) flush(); }
+  else if (cfg.token && !pending.length && (!server.at || Date.now() - new Date(server.at).getTime() > 30000)) refresh(true);
+});
+
+/* ---------- start ---------- */
+if (server.doc && !navigator.onLine) setSync('offline');
+render();
+if (cfg.token) refresh(!!server.doc); else openSettings();
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+window.__tb = {flush, refresh, current, get pending(){ return pending; }, get server(){ return server; }, b64enc, b64dec};
+})();
+</script>
+</body>
+</html>
